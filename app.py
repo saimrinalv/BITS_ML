@@ -91,7 +91,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# --- 5 & 6. Hybrid Data Selection (Satisfies Rubric A & B) ---
+# --- 5 & 6. Hybrid Data Selection (Satisfies Rubric A) ---
 col_upload, col_model = st.columns(2)
 
 with col_upload:
@@ -145,7 +145,7 @@ cm = confusion_matrix(y_true, y_pred, labels=[1, 0])
 tp, fn, fp, tn = cm.ravel()
 
 
-# --- 8. KPI Cards Row (Satisfies Rubric C) ---
+# --- 8. KPI Cards Row (Rubric C) ---
 st.markdown("<hr style='margin: 10px 0px 20px 0px;'>", unsafe_allow_html=True)
 m1, m2, m3, m4, m5, m6 = st.columns(6)
 m1.metric("**Accuracy**", f"{accuracy_score(y_true, y_pred) * 100:.1f}%")
@@ -157,7 +157,7 @@ m6.metric("**MCC Score**", f"{matthews_corrcoef(y_true, y_pred) * 100:.1f}%")
 st.markdown("<hr style='margin: 20px 0px;'>", unsafe_allow_html=True)
 
 
-# --- 9. Plots & Insights (Satisfies Rubric D) ---
+# --- 9. Plots & Insights (Rubric D) ---
 col_left, col_spacer, col_right = st.columns([1.2, 0.1, 1.4])
 
 with col_left:
@@ -172,8 +172,7 @@ with col_left:
     ax.set_ylabel('Actual Outcome', fontsize=12, fontweight='bold', labelpad=15)
     ax.set_xlabel('Predicted Outcome', fontsize=12, fontweight='bold', labelpad=15)
     plt.tight_layout()
-    # Fixed line: changed width="stretch" to use_container_width=True
-    st.pyplot(fig, use_container_width=True)
+    st.pyplot(fig, width="stretch")
 
 with col_right:
     st.markdown("<h4 style='margin-bottom: 5px; font-size: 18px;'>Clinical Insights</h4>", unsafe_allow_html=True)
@@ -196,5 +195,4 @@ with st.expander("View Sample Predictions Data Table", expanded=False):
     display_df = data.copy()
     display_df['Predicted_Outcome'] = y_pred
     cols = [target_col, 'Predicted_Outcome'] + [c for c in display_df.columns if c not in [target_col, 'Predicted_Outcome']]
-    # Fixed line: changed width="stretch" to use_container_width=True
-    st.dataframe(display_df[cols].head(50), use_container_width=True)
+    st.dataframe(display_df[cols].head(50), width="stretch")
