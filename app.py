@@ -75,7 +75,7 @@ with st.sidebar:
         st.warning("⚠️ Metadata not found. Run training script to generate details.")
     
     st.markdown("---")
-    st.markdown("**Instructions:**\n1. Upload the test dataset.\n2. Select a model pipeline to evaluate its performance.")
+    st.markdown("**Instructions:**\n1. Upload the test dataset (Optional).\n2. Select a model pipeline to evaluate its performance.")
 
 # --- 4. Centered Header & Logo ---
 st.markdown("""
@@ -91,27 +91,29 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# --- 5 & 6. Selectors in a Single Row ---
+# --- 5 & 6. Hybrid Data Selection (Satisfies Rubric A) ---
 col_upload, col_model = st.columns(2)
 
 with col_upload:
     st.markdown("<h4 style='text-align: center; margin-bottom: 0px;'>1. Upload Test Dataset</h4>", unsafe_allow_html=True)
-    # File uploader to satisfy Rubric A
     uploaded_file = st.file_uploader("Upload test_data.csv", type=["csv"], label_visibility="collapsed")
 
 with col_model:
     st.markdown("<h4 style='text-align: center; margin-bottom: 0px;'>2. Select Model Pipeline</h4>", unsafe_allow_html=True)
-    # Model dropdown to satisfy Rubric B
     model_options = ["Logistic Regression", "Decision Tree", "KNN", "Naive Bayes", "Random Forest", "XGBoost"]
     selected_model = st.selectbox("Select Model", model_options, index=5, label_visibility="collapsed")
 
 
-# --- Halt execution until file is uploaded ---
+# --- Data Loading Logic ---
 if uploaded_file is not None:
     data = pd.read_csv(uploaded_file)
+    st.toast("✅ Using uploaded file")
 else:
-    st.info("👆 Please upload the **test_data.csv** dataset to activate the dashboard.")
-    st.stop()
+    try:
+        data = pd.read_csv('test_data.csv')
+    except FileNotFoundError:
+        st.info("👆 Please upload the **test_data.csv** dataset to activate the dashboard.")
+        st.stop()
 
 
 # Load selected model resources
@@ -125,7 +127,6 @@ except Exception as e:
 
 # --- 7. Data Processing ---
 target_col = 'is_readmitted'
-# Graceful fallback for column naming
 if target_col not in data.columns and 'readmitted_binary' in data.columns:
     data = data.rename(columns={'readmitted_binary': target_col})
 
@@ -133,23 +134,19 @@ if target_col in data.columns:
     X_test = data.drop(target_col, axis=1)
     y_true = data[target_col]
 else:
-    st.error("⚠️ Target column not found in uploaded dataset.")
+    st.error("⚠️ Target column not found in dataset.")
     st.stop()
 
-# Predict
 X_test_scaled = scaler.transform(X_test)
 y_pred = model.predict(X_test_scaled)
-# AUC requires probability scores if available, fallback to pure predictions if not
 y_proba = model.predict_proba(X_test_scaled)[:, 1] if hasattr(model, "predict_proba") else y_pred
 
-# Calculate Matrix ([1, 0] forces Positive to Top-Left)
 cm = confusion_matrix(y_true, y_pred, labels=[1, 0])
 tp, fn, fp, tn = cm.ravel()
 
 
 # --- 8. KPI Cards Row (Rubric C) ---
 st.markdown("<hr style='margin: 10px 0px 20px 0px;'>", unsafe_allow_html=True)
-# 6 columns to fit AUC perfectly on the same row
 m1, m2, m3, m4, m5, m6 = st.columns(6)
 m1.metric("**Accuracy**", f"{accuracy_score(y_true, y_pred) * 100:.1f}%")
 m2.metric("**AUC**", f"{roc_auc_score(y_true, y_proba) * 100:.1f}%")
@@ -165,29 +162,20 @@ col_left, col_spacer, col_right = st.columns([1.2, 0.1, 1.4])
 
 with col_left:
     st.markdown("<h4 style='text-align: center; margin-bottom: 5px; font-size: 18px;'>Confusion Matrix</h4>", unsafe_allow_html=True)
-    
     fig, ax = plt.subplots(figsize=(6, 4.5)) 
-    
-    # Matrix generation 
     sns.heatmap(cm, annot=True, fmt='d', cmap='Purples', 
                 cbar=False, annot_kws={"size": 18, "weight": "bold"}, 
                 linewidths=2, linecolor='black', ax=ax)
     
-    # Text wrapping
     ax.set_xticklabels(['Readmitted\n(Positive)', 'Not Readmitted\n(Negative)'], fontsize=11, ha='center')
     ax.set_yticklabels(['Readmitted\n(Positive)', 'Not Readmitted\n(Negative)'], fontsize=11, rotation=0, va='center')
-    
     ax.set_ylabel('Actual Outcome', fontsize=12, fontweight='bold', labelpad=15)
     ax.set_xlabel('Predicted Outcome', fontsize=12, fontweight='bold', labelpad=15)
-    
     plt.tight_layout()
-    # Updated width syntax to remove terminal warnings
     st.pyplot(fig, width="stretch")
 
 with col_right:
     st.markdown("<h4 style='margin-bottom: 5px; font-size: 18px;'>Clinical Insights</h4>", unsafe_allow_html=True)
-    
-    # Custom Single-Color Insights Box HTML
     st.markdown(f"""
     <div class="insights-card">
         <strong>Prediction Breakdown ({selected_model}):</strong>
@@ -207,5 +195,4 @@ with st.expander("View Sample Predictions Data Table", expanded=False):
     display_df = data.copy()
     display_df['Predicted_Outcome'] = y_pred
     cols = [target_col, 'Predicted_Outcome'] + [c for c in display_df.columns if c not in [target_col, 'Predicted_Outcome']]
-    # Updated width syntax to remove terminal warnings
     st.dataframe(display_df[cols].head(50), width="stretch")
